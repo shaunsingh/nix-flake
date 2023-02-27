@@ -4,10 +4,15 @@
   inputs = {
     # Nixpkgs will be pinned to unstable to get the latest Rust
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    # Flake utilities
+    flake-utils.url = "github:numtide/flake-utils";
     # Utils for building Rust stuff
-    naersk.url = "github:nmattia/naersk/master";
+    crane = {
+      url = "github:ipetkov/crane";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     # The Rust source for xremap
-    xremap = {
+    xremap-src = {
       url = "github:k0kubun/xremap?ref=v0.8.2";
       flake = false;
     };
@@ -15,53 +20,41 @@
       url = "github:hyprwm/Hyprland";
     };
   };
-  outputs = { self, nixpkgs, naersk, xremap, hyprland }:
-    let
-      supportedSystems = [ "x86_64-linux" "aarch64-linux" ];
-      forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
-      nixpkgsFor = forAllSystems (system: import nixpkgs { inherit system; });
-    in
-    rec
-    {
-      packages = forAllSystems (system:
-        let
-          pkgs = nixpkgsFor.${system};
-          naersk-lib = pkgs.callPackage naersk { };
-        in
-        {
-          default = (import ./overlay xremap naersk-lib pkgs { }).xremap-unwrapped;
-        }
-      );
-      apps = forAllSystems (system:
-        let
-          pkgs = nixpkgsFor.${system};
-          naersk-lib = pkgs.callPackage naersk { };
-          package = (import ./overlay xremap naersk-lib pkgs { }).xremap-unwrapped;
-        in
-        {
-          default = {
-            type = "app";
-            program = "${package}/bin/xremap";
-          };
-        }
-      );
-      devShells = forAllSystems
-        (system:
-          let
-            pkgs = nixpkgsFor.${system};
-          in
-          {
-            default =
-              with pkgs; mkShell {
-                buildInputs = [ cargo rustc rustfmt rustPackages.clippy ];
-                RUST_SRC_PATH = rustPlatform.rustLibSrc;
-              };
-          }
-        );
+  outputs = { self, nixpkgs, crane, flake-utils, ... }:
+    flake-utils.lib.eachDefaultSystem (system:
+      let
+        pkgs = import nixpkgs {
+          inherit system;
+        };
+
+        craneLib = crane.lib.${system};
+        xremap = craneLib.buildPackage {
+          src = inputs.xremap-src;
+        };
+      in
+      {
+        checks = {
+          inherit xremap;
+        };
+
+        packages.default = xremap;
+
+        apps.default = flake-utils.lib.mkApp {
+          drv = xremap;
+        };
+
+        devShells.default = pkgs.mkShell {
+          inputsFrom = builtins.attrValues self.checks.${system};
+          nativeBuildInputs = with pkgs; [
+            cargo
+            rustc
+            rustfmt
+          ];
+        };
 
       # See comments in the module
-      nixosModules.default = import ./modules xremap naersk;
-
+      nixosModules.default = import ./modules xremap;
+      
       nixosConfigurations =
         let
           default_modules = [

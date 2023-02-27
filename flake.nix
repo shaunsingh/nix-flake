@@ -20,7 +20,7 @@
       url = "github:hyprwm/Hyprland";
     };
   };
-  outputs = { self, nixpkgs, crane, flake-utils, ... }:
+  outputs = { self, nixpkgs, crane, flake-utils, xremap-src, hyprland, ... }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs {
@@ -29,7 +29,7 @@
 
         craneLib = crane.lib.${system};
         xremap = craneLib.buildPackage {
-          src = inputs.xremap-src;
+          src = xremap-src;
         };
       in
       {

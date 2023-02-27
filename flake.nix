@@ -30,6 +30,7 @@
         craneLib = crane.lib.${system};
         xremap = craneLib.buildPackage {
           src = xremap-src;
+          cargoExtraArgs = "--features sway";
         };
       in
       {
@@ -53,8 +54,8 @@
         };
 
       # See comments in the module
-      nixosModules.default = import ./modules xremap;
-      
+      nixosModules.default = import ./modules {inherit xremap;};
+
       nixosConfigurations =
         let
           default_modules = [

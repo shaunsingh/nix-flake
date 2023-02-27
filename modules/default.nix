@@ -1,5 +1,4 @@
-# Only the sources (xremap, naersk) are needed, since they will use pkgs and the system defined outside the module
-xremap: { pkgs, config, ... }:
+{ pkgs, config, xremap, ... }:
 let
   cfg = config.services.xremap;
   package = xremap;

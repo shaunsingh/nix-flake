@@ -1,6 +1,11 @@
 # NOTE: modulesPath and imports are taken from nixpkgs#59219
-{ modulesPath, pkgs, lib, ... }: {
-  imports = [ (modulesPath + "/virtualisation/qemu-vm.nix") ];
+{
+  modulesPath,
+  pkgs,
+  lib,
+  ...
+}: {
+  imports = [(modulesPath + "/virtualisation/qemu-vm.nix")];
   users.users.root.password = "root";
   users.users.alice = {
     password = "hunter2";
@@ -11,7 +16,11 @@
   documentation.enable = false;
   virtualisation.forwardPorts = [
     # SSH
-    { from = "host"; host.port = 64022; guest.port = 22; }
+    {
+      from = "host";
+      host.port = 64022;
+      guest.port = 22;
+    }
   ];
   services.openssh = {
     enable = true;
@@ -31,6 +40,5 @@
     _JAVA_AWT_WM_NONREPARENTING = "1";
     XCURSOR_SIZE = "24";
   };
-  environment.systemPackages = with pkgs; [ vim kitty foot ];
+  environment.systemPackages = with pkgs; [vim kitty foot];
 }
-

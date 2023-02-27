@@ -20,79 +20,83 @@
       url = "github:hyprwm/Hyprland";
     };
   };
-  outputs = { self, nixpkgs, crane, flake-utils, xremap-src, hyprland, ... }:
-    flake-utils.lib.eachDefaultSystem (system:
-      let
-        pkgs = import nixpkgs {
-          inherit system;
-        };
+  outputs = {
+    self,
+    nixpkgs,
+    crane,
+    flake-utils,
+    xremap-src,
+    hyprland,
+    ...
+  }:
+    flake-utils.lib.eachDefaultSystem (system: let
+      pkgs = import nixpkgs {
+        inherit system;
+      };
 
-        craneLib = crane.lib.${system};
-        xremap = craneLib.buildPackage {
-          src = xremap-src;
-          cargoExtraArgs = "--features sway";
-        };
-      in
-      {
-        checks = {
-          inherit xremap;
-        };
+      craneLib = crane.lib.${system};
+      xremap = craneLib.buildPackage {
+        src = xremap-src;
+        cargoExtraArgs = "--features sway";
+      };
+    in {
+      checks = {
+        inherit xremap;
+      };
 
-        packages.default = xremap;
+      packages.default = xremap;
 
-        apps.default = flake-utils.lib.mkApp {
-          drv = xremap;
-        };
+      apps.default = flake-utils.lib.mkApp {
+        drv = xremap;
+      };
 
-        devShells.default = pkgs.mkShell {
-          inputsFrom = builtins.attrValues self.checks.${system};
-          nativeBuildInputs = with pkgs; [
-            cargo
-            rustc
-            rustfmt
-          ];
-        };
+      devShells.default = pkgs.mkShell {
+        inputsFrom = builtins.attrValues self.checks.${system};
+        nativeBuildInputs = with pkgs; [
+          cargo
+          rustc
+          rustfmt
+        ];
+      };
 
-      # See comments in the module
-      nixosModules.default = import ./modules {inherit xremap;};
+      nixosModules.xremap = import ./modules {inherit xremap;};
 
-      nixosConfigurations =
-        let
-          default_modules = [
-            self.nixosModules.default
-            ./nixosConfigurations/vm-config.nix
-            {
-              services.xremap = {
-                userName = "alice";
-                config = {
-                  keymap = [
-                    {
-                      name = "Test remap a>b in kitty";
-                      application = {
-                        "only" = "kitty";
-                      };
-                      remap = {
-                        "a" = "b";
-                      };
-                    }
-                    {
-                      name = "Test remap c>d everywhere";
-                      remap = {
-                        "x" = "z";
-                      };
-                    }
-                  ];
-                };
+      nixosConfigurations = let
+        default_modules = [
+          self.nixosModules.default
+          ./nixosConfigurations/vm-config.nix
+          {
+            services.xremap = {
+              userName = "alice";
+              config = {
+                keymap = [
+                  {
+                    name = "Test remap a>b in kitty";
+                    application = {
+                      "only" = "kitty";
+                    };
+                    remap = {
+                      "a" = "b";
+                    };
+                  }
+                  {
+                    name = "Test remap c>d everywhere";
+                    remap = {
+                      "x" = "z";
+                    };
+                  }
+                ];
               };
-            }
-          ];
-          system = "x86_64-linux";
-          pkgs = nixpkgs.legacyPackages.${system};
-        in
-        {
-          hyprland-system-dev = nixpkgs.lib.nixosSystem {
-            inherit pkgs system;
-            modules = [
+            };
+          }
+        ];
+        system = "x86_64-linux";
+        pkgs = nixpkgs.legacyPackages.${system};
+      in {
+        hyprland-system-dev = nixpkgs.lib.nixosSystem {
+          inherit pkgs system;
+          modules =
+            [
               hyprland.nixosModules.default
               {
                 boot.tmpOnTmpfs = true; # To clean out hyprland socket
@@ -104,11 +108,13 @@
                   withHypr = true;
                 };
               }
-            ] ++ default_modules;
-          };
-          hyprland-user-dev = nixpkgs.lib.nixosSystem {
-            inherit pkgs system;
-            modules = [
+            ]
+            ++ default_modules;
+        };
+        hyprland-user-dev = nixpkgs.lib.nixosSystem {
+          inherit pkgs system;
+          modules =
+            [
               hyprland.nixosModules.default
               {
                 boot.tmpOnTmpfs = true; # To clean out hyprland socket
@@ -121,18 +127,21 @@
                   serviceMode = "user";
                 };
               }
-            ] ++ default_modules;
-          };
-          # NOTE: after alice is logged in - need to run systemctl restart xremap.service to pick up the socket
-          sway-system-dev = nixpkgs.lib.nixosSystem {
-            inherit pkgs system;
-            modules = [
+            ]
+            ++ default_modules;
+        };
+        # NOTE: after alice is logged in - need to run systemctl restart xremap.service to pick up the socket
+        sway-system-dev = nixpkgs.lib.nixosSystem {
+          inherit pkgs system;
+          modules =
+            [
               {
                 programs.sway.enable = true;
               }
               ./nixosConfigurations/sway-common.nix
-            ] ++ default_modules;
-          };
+            ]
+            ++ default_modules;
         };
+      };
     });
 }
